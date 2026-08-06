@@ -12,6 +12,17 @@ def _optional_float(name: str) -> Optional[float]:
     return float(value) if value else None
 
 
+def _optional_port(name: str, default: str) -> Optional[int]:
+    """Parse a TCP port. Empty or 0 disables the listener."""
+    value = os.getenv(name, default).strip()
+    if not value or value == "0":
+        return None
+    port = int(value)
+    if port < 0:
+        raise ValueError(f"{name} must be >= 0")
+    return port
+
+
 def _boolean(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -24,7 +35,7 @@ class Config:
     host: str
     port: int
     health_host: str
-    health_port: int
+    health_port: Optional[int]
     log_level: str
     bitcoin_source: str
     cache_seconds: float
@@ -50,7 +61,7 @@ class Config:
             host=os.getenv("BLOCKCLOCK_HOST", "0.0.0.0"),
             port=int(os.getenv("BLOCKCLOCK_PORT", "21021")),
             health_host=os.getenv("HEALTH_HOST", "0.0.0.0"),
-            health_port=int(os.getenv("HEALTH_PORT", "8080")),
+            health_port=_optional_port("HEALTH_PORT", "8080"),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             bitcoin_source=source,
             cache_seconds=float(os.getenv("CACHE_SECONDS", "15")),

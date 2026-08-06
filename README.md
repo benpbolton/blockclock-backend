@@ -138,7 +138,8 @@ curl http://127.0.0.1:8080/status
 | `/status`  | Active and total Mini connection counts      |
 
 Compose binds health to `127.0.0.1:8080` by default. Bare `python -m` runs bind
-health to `0.0.0.0:8080` unless `HEALTH_HOST` is set.
+health to `0.0.0.0:8080` unless `HEALTH_HOST` is set. Set `HEALTH_PORT=0` (or
+empty) to disable the health HTTP listener.
 
 ## Supported tags
 
@@ -179,7 +180,7 @@ repo.
 | `BLOCKCLOCK_HOST` | `0.0.0.0` | Mini protocol bind address |
 | `BLOCKCLOCK_PORT` | `21021` | Mini protocol TCP port |
 | `HEALTH_HOST` | `0.0.0.0` (`127.0.0.1` in Compose) | Health HTTP bind address |
-| `HEALTH_PORT` | `8080` | Health HTTP port |
+| `HEALTH_PORT` | `8080` | Health HTTP port; `0` or empty disables health |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 | `CACHE_SECONDS` | `15` | Bitcoin/price cache TTL; also min block-notify poll interval (floor 5s) |
 | `REQUEST_TIMEOUT` | `8` | Seconds for RPC, Electrum, and price HTTP calls |

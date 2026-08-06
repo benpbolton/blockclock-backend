@@ -27,12 +27,23 @@ async def main() -> None:
         config.port,
         limit=256 * 1024 + 4,
     )
+    log = logging.getLogger(__name__)
+    if config.health_port is None:
+        log.info(
+            "Blockclock backend listening on %s:%d (health disabled, source=%s)",
+            config.host,
+            config.port,
+            config.bitcoin_source,
+        )
+        async with tcp_server:
+            await tcp_server.serve_forever()
+        return
     http_server = await asyncio.start_server(
         lambda reader, writer: health_handler(reader, writer, state),
         config.health_host,
         config.health_port,
     )
-    logging.getLogger(__name__).info(
+    log.info(
         "Blockclock backend listening on %s:%d (health %s:%d, source=%s)",
         config.host,
         config.port,
