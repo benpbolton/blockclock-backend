@@ -2,10 +2,15 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+> **Don't trust. Verify.**
+
 Independent, self-hosted replacement for Coinkite's
 `na.blockclockmini.com:21021` data backend. It speaks the Mini's undocumented
 cleartext CBOR/TCP **pull** protocol, preserves the normal group/tag menus, and
-reads blockchain data from your own Bitcoin Core or Electrum server.
+reads blockchain data from **your own** Bitcoin Core or Electrum server.
+
+The point is simple: stop asking someone else's server what the timechain says.
+**Run your own node.** This service just puts that truth on the Mini.
 
 The implementation is dependency-free Python (stdlib only, 3.9+) and ships with
 a hardened, read-only Docker Compose service.
@@ -14,9 +19,8 @@ a hardened, read-only Docker Compose service.
 > project is a community reimplementation of the on-the-wire pull protocol
 > observed against firmware 1.2.3. No Coinkite source code is included.
 >
-> **Status:** unit-tested protocol/server paths; end-to-end validation on a
-> real Mini is welcome. Treat as experimental until you confirm it with your
-> device and node.
+> **Status:** unit-tested protocol/server paths; hardware and node validation
+> still required before relying on it. Don't trust this README alone.
 
 ## What works
 
@@ -35,7 +39,8 @@ selections continue to make sense.
 
 ## Quick start with Bitcoin Core
 
-Copy the example configuration and fill in a dedicated, read-only RPC login:
+*Your node, your rules.* Copy the example configuration and fill in a
+dedicated, read-only RPC login:
 
 ```sh
 cp .env.example .env
@@ -64,9 +69,13 @@ environment:
 
 The container runs as UID 10001, so that user must be able to read the mounted
 cookie. A dedicated `rpcauth` login is often simpler and avoids sharing the
-node's cookie.
+node's cookie. Prefer least privilege: this backend only needs to **read**
+chain state.
 
 ## Electrum instead of Core
+
+Prefer a full node when you can. Electrum is a lighter option—useful, but you
+are trusting that server's view of the chain more than your own validation.
 
 Set these values in `.env`:
 
@@ -83,7 +92,10 @@ hashrate tags require Core RPC and will show an offline/error value.
 
 ## Price data is opt-in
 
-No third-party price server is contacted by default. You can set a fixed value:
+Fiat price is not consensus. Block height is. No third-party price server is
+contacted by default; only fetch rates if you choose to.
+
+You can set a fixed value:
 
 ```dotenv
 BITCOIN_PRICE_USD=64520
@@ -112,7 +124,7 @@ The cleanest route is the Mini's local admin page:
 Alternatively, override local DNS for `na.blockclockmini.com` and resolve it to
 this server. The firmware's default port is already 21021.
 
-Check connection state locally with:
+Then verify the path is live—don't assume:
 
 ```sh
 curl http://127.0.0.1:8080/status
@@ -159,6 +171,8 @@ Unavailable values render as seven-cell `ERROR` with `br_text: offline`.
 ## Configuration reference
 
 All settings are environment variables. See `.env.example` for a starter file.
+Copy it, edit locally, and **never commit `.env`**—not your secrets, not your
+repo.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -186,9 +200,13 @@ All settings are environment variables. See `.env.example` for a starter file.
 
 The firmware protocol is unencrypted and server replies are unsigned. The
 client handshake uses a fleet-wide firmware key, so it is not meaningful
-per-device authorization. Do not expose TCP 21021 broadly: firewall it to the
-Mini/VPN, keep the device on an IoT VLAN, and prefer a private DNS/VPN route to
-a public Internet listener.
+per-device authorization. **Trust, but verify the perimeter:** do not expose
+TCP 21021 broadly—firewall it to the Mini/VPN, keep the device on an IoT VLAN,
+and prefer a private DNS/VPN route to a public Internet listener.
+
+This is a display feed, not a wallet. Still apply the same instincts:
+minimize attack surface, don't share more credentials than needed, and assume
+anything on a cleartext LAN hop can be observed.
 
 Compose hardening defaults:
 
@@ -199,7 +217,8 @@ Compose hardening defaults:
 
 This replaces only the normal data backend. Opendime balance lookups and
 transaction broadcasting use the separately configured Esplora-compatible
-URLs in the Mini and should be pointed at services you trust as well.
+URLs in the Mini—**not your keys, not your coins** still applies: point those
+at explorers or services *you* trust, or leave them alone.
 
 ## Project layout
 
@@ -221,7 +240,8 @@ Dockerfile
 
 ## Development and verification
 
-Requires Python 3.9+. No third-party packages.
+Requires Python 3.9+. No third-party packages. Read the code—**verify**, then
+run it.
 
 Run locally without a node:
 
@@ -243,7 +263,8 @@ python3 -m unittest discover -v
 
 The tests include a captured firmware-compatible greeting frame, CBOR codec
 round trips, exact seven-cell block/price render shapes, and a full async
-client/server exchange.
+client/server exchange. Green tests are necessary, not sufficient—confirm
+against your Mini and node before you rely on it.
 
 ## Protocol summary
 
@@ -258,7 +279,8 @@ polled chain tip advances (interval ≈ `CACHE_SECONDS`, minimum 5s).
 
 The protocol was reverse-engineered from the published 1.2.3 firmware behavior
 and the live Coinkite backend (observed August 2026). No Coinkite source code
-is included.
+is included. Re-check against firmware and wire captures as releases move—
+the timechain is slow; vendor firmware is not.
 
 ## Related work
 
@@ -273,7 +295,10 @@ replacing the pull backend:
 
 This project is different: the Mini keeps its menus, tag search, and
 Bitcoin-block update mode by talking to you as if you were Coinkite's backend.
+Same goal, different trust model—pick the path you can actually verify.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. Free software: study it, fork it, run it. See [LICENSE](LICENSE).
+
+*Tick tock, next block.*
