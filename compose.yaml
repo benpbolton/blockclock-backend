@@ -1,0 +1,44 @@
+services:
+  blockclock-backend:
+    build:
+      context: .
+    image: blockclock-backend:local
+    container_name: blockclock-backend
+    restart: unless-stopped
+
+    # Recommended when this runs directly on the Linux Bitcoin node. It lets
+    # the container reach Core/Electrum on 127.0.0.1 without exposing RPC.
+    network_mode: host
+
+    environment:
+      BLOCKCLOCK_HOST: ${BLOCKCLOCK_HOST:-0.0.0.0}
+      BLOCKCLOCK_PORT: ${BLOCKCLOCK_PORT:-21021}
+      HEALTH_HOST: ${HEALTH_HOST:-127.0.0.1}
+      HEALTH_PORT: ${HEALTH_PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CACHE_SECONDS: ${CACHE_SECONDS:-15}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-8}
+
+      BITCOIN_SOURCE: ${BITCOIN_SOURCE:-rpc}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL:-http://127.0.0.1:8332}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER:-}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD:-}
+      BITCOIN_RPC_COOKIE_FILE: ${BITCOIN_RPC_COOKIE_FILE:-}
+
+      ELECTRUM_HOST: ${ELECTRUM_HOST:-127.0.0.1}
+      ELECTRUM_PORT: ${ELECTRUM_PORT:-50001}
+      ELECTRUM_TLS: ${ELECTRUM_TLS:-false}
+
+      BITCOIN_PRICE_USD: ${BITCOIN_PRICE_USD:-}
+      PRICE_URL: ${PRICE_URL:-}
+      PRICE_JSON_PATH: ${PRICE_JSON_PATH:-}
+      MOCK_BLOCK_HEIGHT: ${MOCK_BLOCK_HEIGHT:-840000}
+
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+

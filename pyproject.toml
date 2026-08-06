@@ -1,0 +1,29 @@
+[project]
+name = "blockclock-backend"
+version = "0.1.0"
+description = "Self-hosted BLOCKCLOCK mini pull-protocol backend"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+authors = [{ name = "benpbolton" }]
+keywords = ["bitcoin", "blockclock", "coinkite", "self-hosted"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: System :: Networking",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/benpbolton/blockclock-backend"
+Repository = "https://github.com/benpbolton/blockclock-backend"
+Issues = "https://github.com/benpbolton/blockclock-backend/issues"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["blockclock_backend*"]
