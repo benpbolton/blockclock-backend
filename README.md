@@ -29,13 +29,13 @@ a hardened, read-only Docker Compose service.
 - Bitcoin block notifications for the Mini's "Bitcoin Block" update mode
 - Bitcoin Core RPC using username/password or a mounted cookie
 - Electrum `blockchain.headers.subscribe`, including parsed header fields
-- Optional static or JSON-fed BTC/USD price
+- BTC/USD from configurable public spots (average) or static/JSON override
 - Local health and connection-status HTTP endpoints
 
 Compatible tag names include the Mini's existing
 `electrum.BTC.block_height`, `cm.blockchain.block_height`,
-`cm.markets.price`, and `cm.markets.sats_per_dollar`, so common saved display
-selections continue to make sense.
+`cm.markets.price`, `coinbase.BTC-USD.spot`, and `cm.markets.sats_per_dollar`,
+so common saved display selections continue to make sense.
 
 ## Quick start with Bitcoin Core
 
@@ -90,18 +90,23 @@ Use port 50002 and `ELECTRUM_TLS=true` for a certificate-validating TLS
 Electrum endpoint. Electrum supplies block/header tags; mempool and network
 hashrate tags require Core RPC and will show an offline/error value.
 
-## Price data is opt-in
+## Price data
 
-Fiat price is not consensus. Block height is. No third-party price server is
-contacted by default; only fetch rates if you choose to.
+Fiat price is not consensus. Block height is.
 
-You can set a fixed value:
+Venue URLs live in `.env` only (copy `.env.example`). `cm.markets.price`
+averages every venue with a non-empty URL. Comment out a block or set
+`PRICE_*_URL=` empty to exclude it. Failed venues are omitted from the average
+and logged once until they recover. Results cache for `PRICE_CACHE_SECONDS`
+(default 30).
+
+`coinbase.BTC-USD.spot` uses only `PRICE_COINBASE_URL`.
+
+Optional overrides:
 
 ```dotenv
 BITCOIN_PRICE_USD=64520
 ```
-
-Or point the service at any JSON endpoint, including one you self-host:
 
 ```dotenv
 PRICE_URL=http://127.0.0.1:3000/api/price
@@ -109,8 +114,8 @@ PRICE_JSON_PATH=data.usd
 ```
 
 `PRICE_JSON_PATH` is a dot-separated path. Numeric path components index JSON
-arrays—for example, `result.XXBTZUSD.c.0`. If both are set, `BITCOIN_PRICE_USD`
-wins.
+arrays—for example, `result.XXBTZUSD.c.0`. Static price wins over `PRICE_URL`;
+`PRICE_URL` replaces the multi-venue average when set.
 
 ## Point the Mini at it
 
@@ -158,9 +163,10 @@ empty) to disable the health HTTP listener.
 | `cm.mempool.transactions` | blockchain | Core RPC |
 | `bitcoin.mempool.vsize` | blockchain | Core RPC |
 | `bitcoin.network.hashrate` | blockchain | Core RPC |
-| `cm.markets.price` | price / common | price config |
-| `cm.markets.sats_per_dollar` | price / common | price config |
-| `memes.moscow_time` | price / common | price config |
+| `cm.markets.price` | price / common | venue URLs or price override |
+| `coinbase.BTC-USD.spot` | price | `PRICE_COINBASE_URL` or override |
+| `cm.markets.sats_per_dollar` | price / common | same as `cm.markets.price` |
+| `memes.moscow_time` | price / common | same as `cm.markets.price` |
 | `datetime.world.a` | datetime / common | local clock |
 | `datetime.world.b` | datetime | local clock |
 | `datetime.UTC.time` | datetime | local clock |
@@ -192,9 +198,18 @@ repo.
 | `ELECTRUM_HOST` | `127.0.0.1` | Electrum server host |
 | `ELECTRUM_PORT` | `50001` | Electrum server port |
 | `ELECTRUM_TLS` | `false` | Use TLS (`true`/`1`/`yes`/`on`) |
-| `BITCOIN_PRICE_USD` | _(unset)_ | Fixed BTC/USD price |
-| `PRICE_URL` | _(empty)_ | JSON price endpoint URL |
-| `PRICE_JSON_PATH` | _(empty)_ | Dot path into the price JSON body |
+| `BITCOIN_PRICE_USD` | _(unset)_ | Fixed BTC/USD price (wins over all feeds) |
+| `PRICE_URL` | _(empty)_ | Single JSON feed; replaces venue average |
+| `PRICE_JSON_PATH` | _(empty)_ | Dot path into the `PRICE_URL` JSON body |
+| `PRICE_CACHE_SECONDS` | `30` | Price feed cache TTL |
+| `PRICE_COINBASE_URL` | _(from `.env.example`)_ | Empty/unset skips venue |
+| `PRICE_COINBASE_JSON_PATH` | `data.amount` | JSON path for Coinbase body |
+| `PRICE_KRAKEN_URL` | _(from `.env.example`)_ | Empty/unset skips venue |
+| `PRICE_KRAKEN_JSON_PATH` | `result.XXBTZUSD.c.0` | JSON path for Kraken body |
+| `PRICE_BITSTAMP_URL` | _(from `.env.example`)_ | Empty/unset skips venue |
+| `PRICE_BITSTAMP_JSON_PATH` | `last` | JSON path for Bitstamp body |
+| `PRICE_GEMINI_URL` | _(from `.env.example`)_ | Empty/unset skips venue |
+| `PRICE_GEMINI_JSON_PATH` | `last` | JSON path for Gemini body |
 | `MOCK_BLOCK_HEIGHT` | `840000` | Height used when `BITCOIN_SOURCE=mock` |
 
 ## Security boundary

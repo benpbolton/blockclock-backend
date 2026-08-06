@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Tuple
+
+# name, url env, json-path env, default json path (used when URL is set)
+_PRICE_VENUE_ENV = (
+    ("coinbase", "PRICE_COINBASE_URL", "PRICE_COINBASE_JSON_PATH", "data.amount"),
+    ("kraken", "PRICE_KRAKEN_URL", "PRICE_KRAKEN_JSON_PATH", "result.XXBTZUSD.c.0"),
+    ("bitstamp", "PRICE_BITSTAMP_URL", "PRICE_BITSTAMP_JSON_PATH", "last"),
+    ("gemini", "PRICE_GEMINI_URL", "PRICE_GEMINI_JSON_PATH", "last"),
+)
 
 
 def _optional_float(name: str) -> Optional[float]:
@@ -30,6 +38,18 @@ def _boolean(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _price_venues_from_env() -> Tuple[Tuple[str, str, str], ...]:
+    """Return (name, url, json_path) for each venue with a non-empty URL."""
+    venues = []
+    for name, url_env, path_env, default_path in _PRICE_VENUE_ENV:
+        url = os.getenv(url_env, "").strip()
+        if not url:
+            continue
+        path = os.getenv(path_env, default_path).strip() or default_path
+        venues.append((name, url, path))
+    return tuple(venues)
+
+
 @dataclass(frozen=True)
 class Config:
     host: str
@@ -50,6 +70,8 @@ class Config:
     static_price: Optional[float]
     price_url: str
     price_json_path: str
+    price_cache_seconds: float
+    price_venues: Tuple[Tuple[str, str, str], ...]
     mock_height: int
 
     @classmethod
@@ -76,5 +98,7 @@ class Config:
             static_price=_optional_float("BITCOIN_PRICE_USD"),
             price_url=os.getenv("PRICE_URL", "").strip(),
             price_json_path=os.getenv("PRICE_JSON_PATH", "").strip(),
+            price_cache_seconds=float(os.getenv("PRICE_CACHE_SECONDS", "30")),
+            price_venues=_price_venues_from_env(),
             mock_height=int(os.getenv("MOCK_BLOCK_HEIGHT", "840000")),
         )

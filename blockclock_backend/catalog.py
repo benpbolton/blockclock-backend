@@ -119,6 +119,18 @@ async def _price(tag: str, catalog: "Catalog", _: ClientPreferences) -> DisplayV
     )
 
 
+async def _coinbase_spot(tag: str, catalog: "Catalog", _: ClientPreferences) -> DisplayValue:
+    price = await catalog.price.coinbase_spot_usd()
+    return numeric(
+        tag,
+        "Coinbase BTC-USD Spot",
+        price,
+        pair=("BTC", "USD"),
+        symbol="$",
+        decimals=0 if price >= 1000 else 2,
+    )
+
+
 async def _sats_per_dollar(tag: str, catalog: "Catalog", _: ClientPreferences) -> DisplayValue:
     price = await catalog.price.price_usd()
     return numeric(tag, "Sats per Dollar", round(100_000_000 / price), pair=("SAT", "USD"))
@@ -139,7 +151,7 @@ class Catalog:
         ["common", "Common", "Self-hosted essentials"],
         ["blockchain", "Blockchain", "Values from your Bitcoin node"],
         ["datetime", "Date/Time", "Time and date values"],
-        ["price", "Fiat Price", "Optional configured BTC/USD price"],
+        ["price", "Fiat Price", "BTC/USD from public spots or config"],
     ]
 
     def __init__(self, bitcoin: BitcoinSource, price: PriceSource):
@@ -160,6 +172,7 @@ class Catalog:
             Tag("cm.retarget.blocks_to_retarget", "Blocks Until Retarget", "blockchain", _blocks_to_retarget),
             Tag("cm.mempool.time_since_last_block", "Time Since Last Block", "blockchain", _time_since_block),
             Tag("cm.markets.price", "Market price of Bitcoin", "price", _price),
+            Tag("coinbase.BTC-USD.spot", "Coinbase BTC-USD Spot", "price", _coinbase_spot),
             Tag("cm.markets.sats_per_dollar", "Sats per Dollar", "price", _sats_per_dollar),
             Tag("memes.moscow_time", "Moscow Time", "price", _sats_per_dollar),
             Tag("datetime.world.a", "Local Time", "datetime", _clock),

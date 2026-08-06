@@ -31,3 +31,22 @@ class ConfigTests(unittest.TestCase):
         ):
             config = Config.from_env()
         self.assertEqual(config.health_port, 9090)
+
+    def test_price_venues_from_env(self):
+        env = {
+            "BITCOIN_SOURCE": "mock",
+            "PRICE_COINBASE_URL": "https://coinbase.example/spot",
+            "PRICE_KRAKEN_URL": "https://kraken.example/ticker",
+            "PRICE_BITSTAMP_URL": "",
+        }
+        with mock.patch.dict(os.environ, env, clear=True):
+            config = Config.from_env()
+        names = [name for name, _, _ in config.price_venues]
+        self.assertEqual(names, ["coinbase", "kraken"])
+        self.assertEqual(config.price_venues[0][2], "data.amount")
+        self.assertEqual(config.price_venues[1][2], "result.XXBTZUSD.c.0")
+
+    def test_price_venue_skipped_when_unset(self):
+        with mock.patch.dict(os.environ, {"BITCOIN_SOURCE": "mock"}, clear=True):
+            config = Config.from_env()
+        self.assertEqual(config.price_venues, ())
