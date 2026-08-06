@@ -107,6 +107,21 @@ async def _time_since_block(tag: str, catalog: "Catalog", _: ClientPreferences) 
     return numeric(tag, "Minutes Since Last Block", minutes, br_text="minutes")
 
 
+async def _next_block_median_fee(tag: str, catalog: "Catalog", _: ClientPreferences) -> DisplayValue:
+    snapshot = await catalog.bitcoin.snapshot()
+    if snapshot.next_block_fee_sats_vb is None:
+        raise DataSourceError("next-block fee estimate is unavailable from this source")
+    fee = snapshot.next_block_fee_sats_vb
+    # Match Coinkite: integer sat/vB when >= 1, else keep a little precision.
+    display = round(fee) if fee >= 1 else round(fee, 2)
+    return numeric(
+        tag,
+        "Median fee rate predicted for next block",
+        display,
+        pair=("SAT", "VB"),
+    )
+
+
 async def _price(tag: str, catalog: "Catalog", _: ClientPreferences) -> DisplayValue:
     price = await catalog.price.price_usd()
     return numeric(
@@ -171,6 +186,12 @@ class Catalog:
             Tag("bitcoin.network.hashrate", "Network Hashrate", "blockchain", _hashrate),
             Tag("cm.retarget.blocks_to_retarget", "Blocks Until Retarget", "blockchain", _blocks_to_retarget),
             Tag("cm.mempool.time_since_last_block", "Time Since Last Block", "blockchain", _time_since_block),
+            Tag(
+                "cm.nextblock.median_fee",
+                "Median fee rate predicted for next block",
+                "blockchain",
+                _next_block_median_fee,
+            ),
             Tag("cm.markets.price", "Market price of Bitcoin", "price", _price),
             Tag("coinbase.BTC-USD.spot", "Coinbase BTC-USD Spot", "price", _coinbase_spot),
             Tag("cm.markets.sats_per_dollar", "Sats per Dollar", "price", _sats_per_dollar),

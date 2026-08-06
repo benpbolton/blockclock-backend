@@ -34,6 +34,13 @@ class BitcoinSnapshot:
     mempool_transactions: Optional[int] = None
     mempool_vsize: Optional[int] = None
     network_hashrate: Optional[float] = None
+    # Next-block fee rate in sat/vB (Electrum estimatefee / Core estimatesmartfee).
+    next_block_fee_sats_vb: Optional[float] = None
+
+
+def _btc_per_kb_to_sats_vb(btc_per_kb: float) -> float:
+    """Convert BTC/kvB (Core) or BTC/kB (Electrum) fee rate to sat/vB."""
+    return float(btc_per_kb) * 1e5
 
 
 class BitcoinSource:
@@ -105,6 +112,26 @@ class BitcoinRPCSource(BitcoinSource):
             raise DataSourceError(f"Bitcoin RPC {method}: {decoded['error']}")
         return decoded.get("result")
 
+    def _next_block_fee_sats_vb(self) -> Optional[float]:
+        # Prefer next-block target; fall back to 2-block if Core cannot estimate.
+        for target in (1, 2):
+            try:
+                result = self._call("estimatesmartfee", [target])
+            except DataSourceError:
+                continue
+            if not isinstance(result, dict):
+                continue
+            feerate = result.get("feerate")
+            if feerate is None:
+                continue
+            try:
+                sats = _btc_per_kb_to_sats_vb(float(feerate))
+            except (TypeError, ValueError):
+                continue
+            if sats > 0:
+                return sats
+        return None
+
     def _snapshot(self) -> BitcoinSnapshot:
         chain = self._call("getblockchaininfo")
         mempool = self._call("getmempoolinfo")
@@ -123,6 +150,7 @@ class BitcoinRPCSource(BitcoinSource):
             mempool_transactions=int(mempool.get("size", 0)),
             mempool_vsize=int(mempool.get("bytes", mempool.get("vsize", 0))),
             network_hashrate=hashrate,
+            next_block_fee_sats_vb=self._next_block_fee_sats_vb(),
         )
 
     async def snapshot(self) -> BitcoinSnapshot:
@@ -137,7 +165,9 @@ def _difficulty_from_bits(bits: int) -> float:
     return difficulty_one_target / target
 
 
-def _parse_header(height: int, header_hex: str) -> BitcoinSnapshot:
+def _parse_header(
+    height: int, header_hex: str, *, next_block_fee_sats_vb: Optional[float] = None
+) -> BitcoinSnapshot:
     try:
         raw = bytes.fromhex(header_hex)
     except ValueError as exc:
@@ -151,6 +181,7 @@ def _parse_header(height: int, header_hex: str) -> BitcoinSnapshot:
         block_time=struct.unpack_from("<I", raw, 68)[0],
         difficulty=_difficulty_from_bits(struct.unpack_from("<I", raw, 72)[0]),
         nonce=struct.unpack_from("<I", raw, 76)[0],
+        next_block_fee_sats_vb=next_block_fee_sats_vb,
     )
 
 
@@ -161,11 +192,52 @@ class ElectrumSource(BitcoinSource):
         self.use_tls = use_tls
         self.timeout = timeout
 
+    def _request(self, stream, connection, req_id: int, method: str, params: list[Any]) -> Any:
+        payload = (
+            json.dumps(
+                {"id": req_id, "method": method, "params": params},
+                separators=(",", ":"),
+            ).encode()
+            + b"\n"
+        )
+        connection.sendall(payload)
+        # Skip unsolicited notifications (id null / mismatched) until our reply.
+        for _ in range(32):
+            raw = stream.readline(1024 * 1024)
+            if not raw:
+                raise DataSourceError("Electrum closed the connection without a response")
+            try:
+                response = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise DataSourceError("Electrum returned invalid JSON") from exc
+            if response.get("id") != req_id:
+                continue
+            if response.get("error"):
+                raise DataSourceError(f"Electrum error: {response['error']}")
+            return response.get("result")
+        raise DataSourceError(f"Electrum did not answer {method}")
+
+    def _estimate_fee_sats_vb(self, stream, connection) -> Optional[float]:
+        # blocks=1 ≈ next block; some servers only answer for 2+.
+        for blocks, req_id in ((1, 2), (2, 3)):
+            try:
+                result = self._request(
+                    stream, connection, req_id, "blockchain.estimatefee", [blocks]
+                )
+            except DataSourceError:
+                continue
+            try:
+                btc_per_kb = float(result)
+            except (TypeError, ValueError):
+                continue
+            if btc_per_kb < 0:
+                continue
+            sats = _btc_per_kb_to_sats_vb(btc_per_kb)
+            if sats > 0:
+                return sats
+        return None
+
     def _snapshot(self) -> BitcoinSnapshot:
-        request = json.dumps(
-            {"id": 1, "method": "blockchain.headers.subscribe", "params": []},
-            separators=(",", ":"),
-        ).encode() + b"\n"
         try:
             connection = socket.create_connection((self.host, self.port), timeout=self.timeout)
             if self.use_tls:
@@ -173,21 +245,18 @@ class ElectrumSource(BitcoinSource):
                     connection, server_hostname=self.host
                 )
             with connection:
-                connection.sendall(request)
                 stream = connection.makefile("rb")
-                raw = stream.readline(1024 * 1024)
+                result = self._request(
+                    stream, connection, 1, "blockchain.headers.subscribe", []
+                ) or {}
+                fee = self._estimate_fee_sats_vb(stream, connection)
         except OSError as exc:
             raise DataSourceError(f"Electrum connection failed: {exc}") from exc
-        if not raw:
-            raise DataSourceError("Electrum closed the connection without a response")
-        try:
-            response = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise DataSourceError("Electrum returned invalid JSON") from exc
-        if response.get("error"):
-            raise DataSourceError(f"Electrum error: {response['error']}")
-        result = response.get("result") or {}
-        return _parse_header(int(result["height"]), result["hex"])
+        return _parse_header(
+            int(result["height"]),
+            result["hex"],
+            next_block_fee_sats_vb=fee,
+        )
 
     async def snapshot(self) -> BitcoinSnapshot:
         return await asyncio.to_thread(self._snapshot)
@@ -207,6 +276,7 @@ class MockBitcoinSource(BitcoinSource):
             previous_hash="00" * 32,
             mempool_transactions=0,
             mempool_vsize=0,
+            next_block_fee_sats_vb=6.0,
         )
 
 

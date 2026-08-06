@@ -71,3 +71,19 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("9", response["tag_html"])
         writer.close()
         await writer.wait_closed()
+
+    async def test_nextblock_median_fee(self):
+        reader, writer = await self.connect()
+        await write_message(
+            writer,
+            {"cmd": "get_value", "arg": "cm.nextblock.median_fee", "reqid": 333333},
+        )
+        response = await read_message(reader)
+        self.assertEqual(response["reqid"], 333333)
+        value = response["tag_value"]
+        self.assertFalse(value["is_error"])
+        self.assertEqual(value["number"], 6.0)
+        self.assertEqual(value["pair"], ["SAT", "VB"])
+        self.assertEqual(value["contents"][0], "/SAT/VB")
+        writer.close()
+        await writer.wait_closed()

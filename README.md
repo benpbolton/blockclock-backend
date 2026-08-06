@@ -87,8 +87,9 @@ ELECTRUM_TLS=false
 ```
 
 Use port 50002 and `ELECTRUM_TLS=true` for a certificate-validating TLS
-Electrum endpoint. Electrum supplies block/header tags; mempool and network
-hashrate tags require Core RPC and will show an offline/error value.
+Electrum endpoint. Electrum supplies block/header tags and next-block fee
+estimates (`blockchain.estimatefee`). Mempool count/vsize and network hashrate
+tags require Core RPC and will show an offline/error value.
 
 ## Price data
 
@@ -148,32 +149,64 @@ empty) to disable the health HTTP listener.
 
 ## Supported tags
 
+Chain tags depend on a single `BITCOIN_SOURCE` (`rpc`, `electrum`, or `mock`).
+You cannot enable Core and Electrum together in one process. If you run a full
+node, prefer `rpc`. Use `electrum` when you only have an Electrum server.
+Price and clock tags do **not** use `BITCOIN_SOURCE`.
+
+### By `BITCOIN_SOURCE` (chain / mempool)
+
+| Tag | `rpc` | `electrum` | `mock` |
+|-----|:-----:|:----------:|:------:|
+| `electrum.BTC.block_height` | yes | yes | yes |
+| `cm.blockchain.block_height` | yes | yes | yes |
+| `bitcoin.BTC.block_height` | yes | yes | yes |
+| `electrum.BTC.difficulty` | yes | yes | yes |
+| `electrum.BTC.last_block_time` | yes | yes | yes |
+| `electrum.BTC.merkle_root` | yes | yes | yes |
+| `electrum.BTC.nonce` | yes | yes | yes |
+| `electrum.BTC.prev_block_hash` | yes | yes | yes |
+| `cm.retarget.blocks_to_retarget` | yes | yes | yes |
+| `cm.mempool.time_since_last_block` | yes | yes | yes |
+| `cm.nextblock.median_fee` | yes (`estimatesmartfee`) | yes (`estimatefee`) | yes |
+| `cm.mempool.transactions` | yes | no | yes |
+| `bitcoin.mempool.vsize` | yes | no | yes |
+| `bitcoin.network.hashrate` | yes | no | yes |
+
+Unavailable chain values render as seven-cell `ERROR` with `br_text: offline`.
+
+### Price (independent of `BITCOIN_SOURCE`)
+
+All market tags use `.env` venue URLs or overrides (`BITCOIN_PRICE_USD` /
+`PRICE_URL`). They work the same under `rpc`, `electrum`, or `mock`.
+
 | Tag | Group | Needs |
 |-----|-------|-------|
-| `electrum.BTC.block_height` | blockchain / common | any source |
-| `cm.blockchain.block_height` | blockchain | any source |
-| `bitcoin.BTC.block_height` | blockchain | any source |
-| `electrum.BTC.difficulty` | blockchain | any source |
-| `electrum.BTC.last_block_time` | blockchain | any source |
-| `electrum.BTC.merkle_root` | blockchain | any source |
-| `electrum.BTC.nonce` | blockchain | any source |
-| `electrum.BTC.prev_block_hash` | blockchain | any source |
-| `cm.retarget.blocks_to_retarget` | blockchain | any source |
-| `cm.mempool.time_since_last_block` | blockchain | any source |
-| `cm.mempool.transactions` | blockchain | Core RPC |
-| `bitcoin.mempool.vsize` | blockchain | Core RPC |
-| `bitcoin.network.hashrate` | blockchain | Core RPC |
-| `cm.markets.price` | price / common | venue URLs or price override |
+| `cm.markets.price` | price / common | venue URLs or override |
 | `coinbase.BTC-USD.spot` | price | `PRICE_COINBASE_URL` or override |
 | `cm.markets.sats_per_dollar` | price / common | same as `cm.markets.price` |
 | `memes.moscow_time` | price / common | same as `cm.markets.price` |
-| `datetime.world.a` | datetime / common | local clock |
-| `datetime.world.b` | datetime | local clock |
-| `datetime.UTC.time` | datetime | local clock |
 
-Menu groups: **Common**, **Blockchain**, **Date/Time**, **Fiat Price**.
+### Date/time (local clock)
 
-Unavailable values render as seven-cell `ERROR` with `br_text: offline`.
+| Tag | Group |
+|-----|-------|
+| `datetime.world.a` | datetime / common |
+| `datetime.world.b` | datetime |
+| `datetime.UTC.time` | datetime |
+
+### Not yet implemented
+
+Coinkite’s cloud serves more tags than this backend. Examples not yet
+implemented (forks welcome):
+
+- Other `cm.nextblock.*` (transactions, reward, fees vs reward, …)
+- Most Clark Moody / treasury / exchange-specific tags beyond the price set above
+- Mempool count, vsize, and hashrate via Electrum (need Core RPC today)
+- Dual `rpc` + `electrum` in one process
+
+Menu groups exposed to the Mini: **Common**, **Blockchain**, **Date/Time**,
+**Fiat Price**.
 
 ## Configuration reference
 
