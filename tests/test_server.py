@@ -57,3 +57,17 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("electrum.BTC.block_height", response["found"])
         writer.close()
         await writer.wait_closed()
+
+    async def test_get_html_preview(self):
+        reader, writer = await self.connect()
+        await write_message(
+            writer,
+            {"cmd": "get_html", "arg": "electrum.BTC.block_height", "reqid": 222222},
+        )
+        response = await read_message(reader)
+        self.assertEqual(response["reqid"], 222222)
+        self.assertIn("tag_html", response)
+        self.assertIn('class="be-preview"', response["tag_html"])
+        self.assertIn("9", response["tag_html"])
+        writer.close()
+        await writer.wait_closed()

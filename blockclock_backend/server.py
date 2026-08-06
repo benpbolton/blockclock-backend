@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 from .catalog import Catalog, ClientPreferences
 from .protocol import ProtocolError, read_message, write_message
+from .render import DisplayValue
 
 LOG = logging.getLogger(__name__)
 
@@ -134,6 +135,22 @@ class ClientSession:
             tag_name = argument if isinstance(argument, str) else ""
             value = await self.catalog.render(tag_name, self.preferences)
             await self.send({"reqid": request_id or 0, "tag_value": value.as_dict()})
+            return
+        if command == "get_html":
+            # Admin UI tag preview. Same payload as get_value, packaged as HTML.
+            if isinstance(argument, str):
+                value = await self.catalog.render(argument, self.preferences)
+            else:
+                label = "None" if argument is None else str(argument)
+                value = DisplayValue(
+                    tag=label,
+                    label=label,
+                    contents=["-"] * 7,
+                    tl_text=label,
+                    br_text="Value is not available at this time (failed render)",
+                    is_error=True,
+                )
+            await self.send({"reqid": request_id or 0, "tag_html": value.as_html()})
             return
         if command == "search":
             query = argument if isinstance(argument, str) else ""

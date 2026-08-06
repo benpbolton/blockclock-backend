@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass
 from typing import Any, Optional, Sequence
 
@@ -32,6 +33,41 @@ class DisplayValue:
             "pair": self.pair,
             "omit_line": self.omit_line,
         }
+
+    def as_html(self) -> str:
+        """Admin-UI preview HTML (get_html), matching Coinkite be-preview shape."""
+        title = self.label if not self.is_error else f"{self.tag} (failed render)"
+        tl = self.tl_text if self.tl_text is not None else self.label
+        tl_html = html.escape(tl) if tl else "&nbsp"
+        br = self.br_text
+        br_html = html.escape(br) if br else "&nbsp;"
+        cells = list(self.contents[:7])
+        while len(cells) < 7:
+            cells.append(" ")
+        parts = [
+            f'<table class="be-preview" title="{html.escape(title)}"><tbody><tr>\n',
+            f'<td class="be-tl-text" colspan=7>{tl_html}</td><tr>\n',
+        ]
+        for cell in cells:
+            parts.append("<td class=\"be-dig\">\n")
+            parts.append(_preview_cell_html(cell))
+            parts.append("</td>\n")
+        parts.append(f'<tr><td class="be-br-text" colspan=7>{br_html}</td>\n')
+        parts.append("</table></center>")
+        return "".join(parts)
+
+
+def _preview_cell_html(cell: str) -> str:
+    if cell.startswith("/") and cell.count("/") >= 2:
+        pieces = [part for part in cell.split("/") if part]
+        if len(pieces) >= 2:
+            over = html.escape(pieces[0])
+            under = html.escape(pieces[1])
+            return (
+                f'<div class="be-ou"><span class="be-over">{over}</span>\n'
+                f'<hr><span class="be-under">{under}</span>\n'
+            )
+    return f'<span class="be-single-char">{html.escape(cell)}</span>\n'
 
 
 def _number_text(value: float, decimals: Optional[int]) -> str:

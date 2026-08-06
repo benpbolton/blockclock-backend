@@ -29,3 +29,21 @@ class RenderTests(unittest.TestCase):
         self.assertTrue(value.is_error)
         self.assertEqual(len(value.contents), 7)
 
+    def test_as_html_preview_shape(self):
+        value = numeric(
+            "cm.markets.price",
+            "Market price of Bitcoin",
+            64330,
+            pair=("BTC", "USD"),
+            symbol="$",
+            decimals=0,
+        )
+        html = value.as_html()
+        self.assertIn('class="be-preview"', html)
+        self.assertIn("Market price of Bitcoin", html)
+        self.assertIn('class="be-over">BTC</span>', html)
+        self.assertIn('class="be-under">USD</span>', html)
+        self.assertIn('class="be-single-char">$</span>', html)
+        self.assertIn('class="be-single-char">6</span>', html)
+        self.assertTrue(html.endswith("</table></center>"))
+

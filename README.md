@@ -288,7 +288,13 @@ Every message is a four-byte big-endian header followed by one CBOR object.
 The high header byte is `0xbc`; the remaining 24 bits are the payload length.
 The server sends a challenge, then accepts the firmware's `client` message.
 Commands used by firmware 1.2.3 are `timezone`, `swap_sep`, `hours24`,
-`get_groups`, `get_group`, `get_value`, `search`, and `ping`.
+`get_groups`, `get_group`, `get_value`, `get_html`, `search`, and `ping`.
+
+`get_html` is an **admin UI preview** only: the Mini local portal asks for a
+tag name and the backend returns `{tag_html: ...}` — a small HTML table that
+mimics the seven digit cells (`be-preview`). It is not a firmware check, not
+a notice channel, and not the tag catalog. This server mocks Coinkite's shape
+from the same `DisplayValue` used by `get_value`.
 
 After handshake the server may push `{"new_btc_block": <height>}` when the
 polled chain tip advances (interval ≈ `CACHE_SECONDS`, minimum 5s).
