@@ -22,6 +22,14 @@ a hardened, read-only Docker Compose service.
 > **Status:** unit-tested protocol/server paths; hardware and node validation
 > still required before relying on it. Don't trust this README alone.
 
+## Rationale
+
+Coinkite does not open-source the BLOCKCLOCK mini pull backend, so every Mini
+depends on their cloud for menus, tags, and block notifications. This project
+exists so you can run that path on your own node—and so the device stays useful
+if vendor cloud or company continuity changes (vendor risk is not theoretical;
+see e.g. the [COLDCARD seed-generation advisory](https://blog.coinkite.com/coldcard-mk3-seed-generation-warning/)).
+
 ## What works
 
 - Firmware 1.2.3 authentication handshake and `0xbc + 24-bit length` framing
@@ -249,9 +257,12 @@ repo.
 
 The firmware protocol is unencrypted and server replies are unsigned. The
 client handshake uses a fleet-wide firmware key, so it is not meaningful
-per-device authorization. **Trust, but verify the perimeter:** do not expose
-TCP 21021 broadly—firewall it to the Mini/VPN, keep the device on an IoT VLAN,
-and prefer a private DNS/VPN route to a public Internet listener.
+per-device authorization: **any host that can reach TCP 21021 can complete the
+handshake and pull tags.** You probably don't want to expose TCP 21021
+broadly—firewall it to the Mini/VPN, keep the device on an IoT VLAN, and
+prefer a private DNS/VPN route to a public Internet listener.
+
+See [SECURITY.md](SECURITY.md) for reporting and design-boundary notes.
 
 This is a display feed, not a wallet. Still apply the same instincts:
 minimize attack surface, don't share more credentials than needed, and assume
