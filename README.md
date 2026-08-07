@@ -132,13 +132,13 @@ The cleanest route is the Mini's local admin page:
 
 1. Open the Mini's IP address in a browser.
 2. Open **Preferences**.
-3. Set **Data Backend** to `your-backend-host:21021`.
+3. Set **Data Backend** to `your-backend-host`.
 4. Use **Test Connection**, save, and reboot if needed.
 
 Alternatively, override local DNS for `na.blockclockmini.com` and resolve it to
 this server. The firmware's default port is already 21021.
 
-Then verify the path is live—don't assume:
+Then verify the path is live:
 
 ```sh
 curl http://127.0.0.1:8080/status
@@ -219,8 +219,7 @@ Menu groups exposed to the Mini: **Common**, **Blockchain**, **Date/Time**,
 ## Configuration reference
 
 All settings are environment variables. See `.env.example` for a starter file.
-Copy it, edit locally, and **never commit `.env`**—not your secrets, not your
-repo.
+Copy it, edit locally, and **never commit `.env`**.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -278,7 +277,7 @@ Compose hardening defaults:
 This replaces only the normal data backend. Opendime balance lookups and
 transaction broadcasting use the separately configured Esplora-compatible
 URLs in the Mini—**not your keys, not your coins** still applies: point those
-at explorers or services *you* trust, or leave them alone.
+at explorers or services *you* trust, or don't use the Blockclock Mini for checking them.
 
 ## Project layout
 
