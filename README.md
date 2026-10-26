@@ -138,22 +138,41 @@ The cleanest route is the Mini's local admin page:
 Alternatively, override local DNS for `na.blockclockmini.com` and resolve it to
 this server. The firmware's default port is already 21021.
 
-Then verify the path is live:
+Run this command on the backend computer to see Mini connection counts:
 
 ```sh
 curl http://127.0.0.1:8080/status
 ```
 
-### Health endpoints
+### Health checks
 
-| Path       | Purpose                                      |
-|------------|----------------------------------------------|
-| `/healthz` | Liveness probe (`{"status":"ok"}`)           |
-| `/status`  | Active and total Mini connection counts      |
+| Path | What it shows |
+|------|---------------|
+| `/healthz` | `{"status":"ok"}` when the health HTTP server can answer |
+| `/status` | Current Mini connections and total connections since the backend started |
 
-Compose binds health to `127.0.0.1:8080` by default. Bare `python -m` runs bind
-health to `0.0.0.0:8080` unless `HEALTH_HOST` is set. Set `HEALTH_PORT=0` (or
-empty) to disable the health HTTP listener.
+These pages show whether the backend can answer an HTTP request. They do not
+check the Bitcoin node, price sources, or data on the Mini.
+
+With Compose, these pages are available only on the backend computer at
+`http://127.0.0.1:8080` by default. When you run Python directly, the health
+HTTP server uses all IPv4 network addresses (`0.0.0.0`) on port 8080. Set
+`HEALTH_HOST=127.0.0.1` to keep those pages on the backend computer.
+
+Set `HEALTH_PORT` to change the port. For example, use `HEALTH_PORT=18080` if
+another service uses port 8080. Set `HEALTH_PORT=0` or `HEALTH_PORT=` to turn
+off the health HTTP server. If you leave the setting out, the port is 8080.
+
+Docker runs `python -m blockclock_backend.healthcheck` every 30 seconds. The
+check requests `/healthz` at the address and port in `HEALTH_HOST` and
+`HEALTH_PORT`. It connects directly, without an HTTP proxy. For `0.0.0.0` or
+an empty host, it connects to `127.0.0.1`. For `::`, it connects to `::1`.
+These addresses point back to the computer that runs the backend.
+
+When you turn off the health HTTP server, the check passes without sending
+a request. In this case, Docker's `healthy` label does not mean the backend
+was checked. This also keeps the check from using another service on port
+8080 when the container shares the host's network.
 
 ## Supported tags
 
@@ -225,8 +244,8 @@ Copy it, edit locally, and **never commit `.env`**.
 |----------|---------|-------------|
 | `BLOCKCLOCK_HOST` | `0.0.0.0` | Mini protocol bind address |
 | `BLOCKCLOCK_PORT` | `21021` | Mini protocol TCP port |
-| `HEALTH_HOST` | `0.0.0.0` (`127.0.0.1` in Compose) | Health HTTP bind address |
-| `HEALTH_PORT` | `8080` | Health HTTP port; `0` or empty disables health |
+| `HEALTH_HOST` | `0.0.0.0` (`127.0.0.1` in Compose) | Network address for the health HTTP server |
+| `HEALTH_PORT` | `8080` | Port for the health HTTP server; `0` or an empty value turns it off |
 | `LOG_LEVEL` | `INFO` | Python logging level |
 | `CACHE_SECONDS` | `15` | Bitcoin/price cache TTL; also min block-notify poll interval (floor 5s) |
 | `REQUEST_TIMEOUT` | `8` | Seconds for RPC, Electrum, and price HTTP calls |
@@ -288,6 +307,7 @@ blockclock_backend/
   protocol.py   # 0xbc framing
   cbor.py       # minimal CBOR codec
   server.py     # session, commands, health HTTP
+  healthcheck.py # container health check (HEALTH_HOST/HEALTH_PORT)
   catalog.py    # groups, tags, renderers
   bitcoin.py    # Core RPC / Electrum / mock sources
   pricing.py    # static or JSON price
